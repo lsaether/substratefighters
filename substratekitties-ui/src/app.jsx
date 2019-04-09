@@ -38,7 +38,8 @@ export class App extends ReactiveComponent {
 			id: 'Hash',
 			dna: 'Hash',
 			price: 'Balance',
-			gen: 'u64'
+			gen: 'u64',
+			speed: 'u64',
 		});
 	}
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ReactiveComponent, Rspan } from 'oo7-react';
+import { ReactiveComponent, Rspan, If } from 'oo7-react';
 const { Pretty } = require('../Pretty');
 import { Card } from 'semantic-ui-react'
 import { runtime, secretStore } from 'oo7-substrate';
@@ -15,28 +15,38 @@ class KittyCard extends ReactiveComponent {
     readyRender() {
         let kitty = this.state.kitty;
 
-        return <Card>
-            <KittyAvatar dna={kitty.dna} />
-            <Card.Content>
-                <Card.Header><Pretty value={kitty.id} className="limit-name" /></Card.Header>
-                <Card.Meta>
-                    <Pretty value={kitty.dna} className="limit-name" />
-                </Card.Meta>
-                <Rspan>
-                    <b>Owner</b>: {secretStore().find(this.state.owner).name}
-                </Rspan>
-                &nbsp;
-                        <Identicon key={this.state.owner} account={this.state.owner} size={16} />
-                <br />
-                <Rspan>
-                    <b>Generation</b>: {kitty.gen}
-                </Rspan>
-                <br />
-            </Card.Content>
-            <Card.Content extra>
-                <Pretty value={kitty.price} prefix="$" />
-            </Card.Content>
-        </Card>;
+        if (kitty != null) {
+            return <Card>
+                <KittyAvatar dna={kitty.dna} />
+                <Card.Content>
+                    <Card.Header><Pretty value={kitty.id} className="limit-name" /></Card.Header>
+                    <Card.Meta>
+                        <Pretty value={kitty.dna} className="limit-name" />
+                    </Card.Meta>
+                    <Rspan>
+                        <b>Owner</b>: {secretStore().find(this.state.owner).name}
+                    </Rspan>
+                    &nbsp;
+                            <Identicon key={this.state.owner} account={this.state.owner} size={16} />
+                    <br />
+                    <Rspan>
+                        <b>Generation</b>: {kitty.gen}
+                    </Rspan>
+                    <br />
+                    <If condition={kitty.speed != null} then={<div>
+                    <Rspan>
+                        <b>Speed</b>: {kitty.speed}
+                    </Rspan>
+                    <br />
+                    </div>}/>
+                </Card.Content>
+                <Card.Content extra>
+                    <Pretty value={kitty.price} prefix="$" />
+                </Card.Content>
+            </Card>;
+        } else {
+            return <span>Upgrade your Substrate Kitties UI for the latest version.</span>
+        }
     }
 }
 
@@ -49,7 +59,7 @@ class KittyWrap extends ReactiveComponent {
         // one level of indirection: convert a given hash
         // to the request of the actual kitty data and who it belongs to
         return <KittyCard
-            kitty={runtime.substratekitties.kitties(this.state.hash)}
+            kitty={runtime.substratekitties.kittiesV2(this.state.hash)}
             owner={runtime.substratekitties.kittyOwner(this.state.hash)}
         />
     }
