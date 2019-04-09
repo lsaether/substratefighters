@@ -7,26 +7,19 @@ use rstd::cmp;
 
 #[derive(Encode, Decode, Default, Clone, PartialEq)]
 #[cfg_attr(feature = "std", derive(Debug))]
-pub struct KittyOld<Hash, Balance> {
+pub struct KittyV1<Hash, Balance> {
     id: Hash,
     dna: Hash,
     price: Balance,
     gen: u64,
-}
-
-#[derive(Encode, Decode, Default, Clone, PartialEq)]
-#[cfg_attr(feature = "std", derive(Debug))]
-pub struct Kitty<Hash, Balance> {
-    id: Hash,
-    dna: Hash,
-    price: Balance,
-    gen: u64,
-    speed: u64,
 }
 
 pub trait Trait: balances::Trait {
     type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
+
+type CurrentKittyVersion<T, U> = KittyV1<T, U>;
+type CurrentKittiesStorage<T> = KittiesV1<T>;
 
 decl_event!(
     pub enum Event<T>
@@ -39,14 +32,12 @@ decl_event!(
         PriceSet(AccountId, Hash, Balance),
         Transferred(AccountId, AccountId, Hash),
         Bought(AccountId, AccountId, Hash, Balance),
-        VersionUpdated(u64),
     }
 );
 
 decl_storage! {
     trait Store for Module<T: Trait> as KittyStorage {
-        Kitties get(kitty_old): map T::Hash => KittyOld<T::Hash, T::Balance>;
-        KittiesV2 get(kitty): map T::Hash => Kitty<T::Hash, T::Balance>;
+        KittiesV1 get(kitty): map T::Hash => KittyV1<T::Hash, T::Balance>;
 
         KittyOwner get(owner_of): map T::Hash => Option<T::AccountId>;
 
@@ -59,7 +50,6 @@ decl_storage! {
         OwnedKittiesIndex: map T::Hash => u64;
         
         Nonce: u64;
-        Version get(version): u64;
     }
 }
 
@@ -68,40 +58,17 @@ decl_module! {
 
         fn deposit_event<T>() = default;
 
-        fn on_initialize() {
-            if Self::version() == 0 {
-                for i in 0..Self::all_kitties_count() {
-                    let kitty_hash = Self::kitty_by_index(i);
-                    let kitty = <Kitties<T>>::take(kitty_hash);
-
-                    let kitty_new = Kitty {
-                        id: kitty.id,
-                        dna: kitty.dna,
-                        price: kitty.price,
-                        gen: kitty.gen,
-                        speed: 13,
-                    };
-
-                    <KittiesV2<T>>::insert(kitty_hash, kitty_new);
-                }
-
-                <Version<T>>::put(2);
-                Self::deposit_event(RawEvent::VersionUpdated(2));
-            }
-        }
-
         fn create_kitty(origin) -> Result {
             let sender = ensure_signed(origin)?;
             let nonce = <Nonce<T>>::get();
             let random_hash = (<system::Module<T>>::random_seed(), &sender, nonce)
                 .using_encoded(<T as system::Trait>::Hashing::hash);
 
-            let new_kitty = Kitty {
+            let new_kitty = CurrentKittyVersion {
                 id: random_hash,
                 dna: random_hash,
                 price: <T::Balance as As<u64>>::sa(0),
                 gen: 0,
-                speed: 10,
             };
 
             Self::mint(sender, random_hash, new_kitty)?;
@@ -114,7 +81,7 @@ decl_module! {
         fn set_price(origin, kitty_id: T::Hash, new_price: T::Balance) -> Result {
             let sender = ensure_signed(origin)?;
 
-            ensure!(<KittiesV2<T>>::exists(kitty_id), "This cat does not exist");
+            ensure!(<CurrentKittiesStorage<T>>::exists(kitty_id), "This cat does not exist");
 
             let owner = Self::owner_of(kitty_id).ok_or("No owner for this kitty")?;
             ensure!(owner == sender, "You do not own this cat");
@@ -122,7 +89,7 @@ decl_module! {
             let mut kitty = Self::kitty(kitty_id);
             kitty.price = new_price;
 
-            <KittiesV2<T>>::insert(kitty_id, kitty);
+            <CurrentKittiesStorage<T>>::insert(kitty_id, kitty);
 
             Self::deposit_event(RawEvent::PriceSet(sender, kitty_id, new_price));
 
@@ -143,7 +110,7 @@ decl_module! {
         fn buy_kitty(origin, kitty_id: T::Hash, max_price: T::Balance) -> Result {
             let sender = ensure_signed(origin)?;
 
-            ensure!(<KittiesV2<T>>::exists(kitty_id), "This cat does not exist");
+            ensure!(<CurrentKittiesStorage<T>>::exists(kitty_id), "This cat does not exist");
 
             let owner = Self::owner_of(kitty_id).ok_or("No owner for this kitty")?;
             ensure!(owner != sender, "You can't buy your own cat");
@@ -165,7 +132,7 @@ decl_module! {
                 qed");
 
             kitty.price = <T::Balance as As<u64>>::sa(0);
-            <KittiesV2<T>>::insert(kitty_id, kitty);
+            <CurrentKittiesStorage<T>>::insert(kitty_id, kitty);
 
             Self::deposit_event(RawEvent::Bought(sender, owner, kitty_id, kitty_price));
 
@@ -175,8 +142,8 @@ decl_module! {
         fn breed_kitty(origin, kitty_id_1: T::Hash, kitty_id_2: T::Hash) -> Result{
             let sender = ensure_signed(origin)?;
 
-            ensure!(<KittiesV2<T>>::exists(kitty_id_1), "This cat 1 does not exist");
-            ensure!(<KittiesV2<T>>::exists(kitty_id_2), "This cat 2 does not exist");
+            ensure!(<CurrentKittiesStorage<T>>::exists(kitty_id_1), "This cat 1 does not exist");
+            ensure!(<CurrentKittiesStorage<T>>::exists(kitty_id_2), "This cat 2 does not exist");
 
             let nonce = <Nonce<T>>::get();
             let random_hash = (<system::Module<T>>::random_seed(), &sender, nonce)
@@ -193,12 +160,11 @@ decl_module! {
                 }
             }
 
-            let new_kitty = Kitty {
+            let new_kitty = CurrentKittyVersion {
                 id: random_hash,
                 dna: final_dna,
                 price: <T::Balance as As<u64>>::sa(0),
                 gen: cmp::max(kitty_1.gen, kitty_2.gen) + 1,
-                speed: cmp::max(kitty_1.speed, kitty_2.speed),
             };
 
             Self::mint(sender, random_hash, new_kitty)?;
@@ -211,7 +177,7 @@ decl_module! {
 }
 
 impl<T: Trait> Module<T> {
-    fn mint(to: T::AccountId, kitty_id: T::Hash, new_kitty: Kitty<T::Hash, T::Balance>) -> Result {
+    fn mint(to: T::AccountId, kitty_id: T::Hash, new_kitty: CurrentKittyVersion<T::Hash, T::Balance>) -> Result {
         ensure!(!<KittyOwner<T>>::exists(kitty_id), "Kitty already exists");
 
         let owned_kitty_count = Self::owned_kitty_count(&to);
@@ -224,7 +190,7 @@ impl<T: Trait> Module<T> {
         let new_all_kitties_count = all_kitties_count.checked_add(1)
             .ok_or("Overflow adding a new kitty to total supply")?;
 
-        <KittiesV2<T>>::insert(kitty_id, new_kitty);
+        <CurrentKittiesStorage<T>>::insert(kitty_id, new_kitty);
         <KittyOwner<T>>::insert(kitty_id, &to);
 
         <AllKittiesArray<T>>::insert(all_kitties_count, kitty_id);

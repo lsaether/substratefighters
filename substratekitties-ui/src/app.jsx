@@ -34,12 +34,12 @@ export class App extends ReactiveComponent {
 		window.that = this;
 		window.metadata = metadata;
 
-		addCodecTransform('Kitty<Hash,Balance>', {
+		window.substrateKittiesVersion = 1;
+		addCodecTransform('KittyV' + window.substrateKittiesVersion + '<Hash,Balance>', {
 			id: 'Hash',
 			dna: 'Hash',
 			price: 'Balance',
-			gen: 'u64',
-			speed: 'u64',
+			gen: 'u64'
 		});
 	}
 

@@ -33,7 +33,7 @@ class KittyCard extends ReactiveComponent {
                         <b>Generation</b>: {kitty.gen}
                     </Rspan>
                     <br />
-                    <If condition={kitty.speed != null} then={<div>
+                    <If condition={kitty.speed != 0 && kitty.speed != null} then={<div>
                     <Rspan>
                         <b>Speed</b>: {kitty.speed}
                     </Rspan>
@@ -59,7 +59,7 @@ class KittyWrap extends ReactiveComponent {
         // one level of indirection: convert a given hash
         // to the request of the actual kitty data and who it belongs to
         return <KittyCard
-            kitty={runtime.substratekitties.kittiesV2(this.state.hash)}
+            kitty={eval('runtime.substratekitties.kittiesV' + window.substrateKittiesVersion + '(this.state.hash)')}
             owner={runtime.substratekitties.kittyOwner(this.state.hash)}
         />
     }
