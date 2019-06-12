@@ -1,0 +1,21 @@
+[package]
+authors = ['Parity Technologies <admin@parity.io>']
+edition = '2018'
+name = 'substratefighters-runtime-wasm'
+version = '1.0.0'
+[dependencies.substratefighters-runtime]
+default-features = false
+path = '..'
+[profile.release]
+lto = true
+panic = 'abort'
+
+[features]
+default = []
+std = ['substratefighters-runtime/std']
+
+[workspace]
+members = []
+
+[lib]
+crate-type = ['cdylib']
