@@ -1,7 +1,7 @@
-# SubstrateKitties
+# SubstrateFighters
 
-<img src="https://shawntabrizi.github.io/substrate-collectables-workshop/media/substratekitty.png" alt="icon" width="300">
+<img src="./image.png" alt="icon" width="300">
 
-Follow the tutorial here to learn more:
+Forked from SubstrateKitties:
 
 https://shawntabrizi.github.io/substrate-collectables-workshop/
